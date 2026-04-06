@@ -1,8 +1,14 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { RoleEntity } from './entities/role.entity';
 import { Repository } from 'typeorm';
-import { RoleAddDto } from './dto/role-add.dto';
+import { RoleCreateDto } from './dto/role.create.dto';
+import { RoleUpdateDto } from './dto/role.update.dto';
+import { QueryDeepPartialEntity } from 'typeorm/browser';
 
 @Injectable()
 export class RolesService {
@@ -11,7 +17,31 @@ export class RolesService {
     private readonly roleRepository: Repository<RoleEntity>,
   ) {}
 
-  async addRole(roleAddDto: RoleAddDto): Promise<RoleEntity> {
+  async getAllRoles(): Promise<RoleEntity[]> {
+    return await this.roleRepository.find();
+  }
+
+  async editRole(
+    roleEditDto: RoleUpdateDto,
+    id: string,
+  ): Promise<{ message: string }> {
+    const role = await this.roleRepository.findOne({
+      where: { id: id },
+    });
+
+    if (!role) {
+      throw new NotFoundException('Role not found');
+    }
+
+    await this.roleRepository.update(
+      id,
+      roleEditDto as QueryDeepPartialEntity<RoleEntity>,
+    );
+
+    return { message: 'Role updated successfully' };
+  }
+
+  async addRole(roleAddDto: RoleCreateDto): Promise<RoleEntity> {
     const role = this.roleRepository.create(roleAddDto);
     if (
       await this.roleRepository.findOne({
@@ -23,7 +53,14 @@ export class RolesService {
     return await this.roleRepository.save(role);
   }
 
-  async getAllRoles(): Promise<RoleEntity[]> {
-    return await this.roleRepository.find();
+  async deleteRole(id: string): Promise<{ message: string }> {
+    const role = await this.roleRepository.findOne({
+      where: { id: id },
+    });
+    if (!role) {
+      throw new NotFoundException('Role not found');
+    }
+    await this.roleRepository.delete(id);
+    return { message: 'Role deleted successfully' };
   }
 }

@@ -4,10 +4,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { UserCreateDto } from './dto/user.create.dto';
-import { Repository } from 'typeorm';
+import { UserUpdateDto } from './dto/user.update.dto';
+import { type QueryDeepPartialEntity, Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { UserGetDto } from './dto/user.get.dto';
 
 @Injectable()
 export class UserService {
@@ -22,9 +22,9 @@ export class UserService {
     });
   }
 
-  async getUserDetails(userGetDto: UserGetDto): Promise<User | null> {
+  async getUserDetails(id: string): Promise<User | null> {
     const user = await this.userRepository.findOne({
-      where: { email: userGetDto.email },
+      where: { id: id },
     });
 
     if (!user) {
@@ -46,5 +46,39 @@ export class UserService {
     const response = await this.userRepository.save(creatdUser);
 
     return response;
+  }
+
+  async deleteUser(id: string): Promise<{ message: string }> {
+    const user = await this.userRepository.findOne({
+      where: { id: id },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    await this.userRepository.delete(id);
+
+    return { message: 'User deleted successfully' };
+  }
+
+  async updateUser(
+    userUpdateDto: UserUpdateDto,
+    id: string,
+  ): Promise<{ message: string }> {
+    const user = await this.userRepository.findOne({
+      where: { id: id },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    await this.userRepository.update(
+      user.id,
+      userUpdateDto as QueryDeepPartialEntity<User>,
+    );
+
+    return { message: 'User updated successfully' };
   }
 }

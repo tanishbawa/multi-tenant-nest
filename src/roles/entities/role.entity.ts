@@ -3,30 +3,22 @@ import {
   CreateDateColumn,
   Entity,
   PrimaryGeneratedColumn,
-  Unique,
   UpdateDateColumn,
 } from 'typeorm';
 
-@Entity('users')
-export class User {
+@Entity('roles')
+export class RoleEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column()
-  name: string;
+  role_name: string;
 
   @Column()
-  age: string;
+  tenant_id: number;
 
-  @Unique(['email'])
-  @Column()
-  email: string;
-
-  @Column()
-  phone_no: string;
-
-  @Column()
-  address: string;
+  @Column({ default: false })
+  built_in: boolean;
 
   @CreateDateColumn()
   created_at: Date;

@@ -18,9 +18,9 @@ import { ApiTags } from '@nestjs/swagger';
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-  @Get('emails')
-  async getAllUsersEmail(): Promise<User[]> {
-    return await this.userService.getAllUsersEmail();
+  @Get('allUsers')
+  async getAllUsers(): Promise<User[]> {
+    return await this.userService.getAllUsers();
   }
 
   @Get(':id')

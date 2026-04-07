@@ -1,7 +1,10 @@
+import { PermissionEntity } from 'src/permissions/entities/permissions.entity';
 import {
   Column,
   CreateDateColumn,
   Entity,
+  JoinTable,
+  ManyToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -19,6 +22,10 @@ export class RoleEntity {
 
   @Column({ default: false })
   built_in: boolean;
+
+  @ManyToMany(() => PermissionEntity, (permission) => permission.id)
+  @JoinTable({ name: 'permissions_id' })
+  permissions: PermissionEntity[];
 
   @CreateDateColumn()
   created_at: Date;

@@ -26,7 +26,7 @@ export class UserService {
   async getUserDetails(id: string): Promise<User | null> {
     const user = await this.userRepository.findOne({
       where: { id: id },
-      relations: ['role'],
+      relations: ['role', 'role.permissions'],
     });
 
     if (!user) {

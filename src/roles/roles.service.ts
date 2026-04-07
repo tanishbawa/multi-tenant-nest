@@ -5,20 +5,24 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { RoleEntity } from './entities/role.entity';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { RoleCreateDto } from './dto/role.create.dto';
 import { RoleUpdateDto } from './dto/role.update.dto';
-import { QueryDeepPartialEntity } from 'typeorm/browser';
+import { PermissionEntity } from 'src/permissions/entities/permissions.entity';
 
 @Injectable()
 export class RolesService {
   constructor(
     @InjectRepository(RoleEntity)
     private readonly roleRepository: Repository<RoleEntity>,
+    @InjectRepository(PermissionEntity)
+    private readonly permissionRepository: Repository<PermissionEntity>,
   ) {}
 
   async getAllRoles(): Promise<RoleEntity[]> {
-    return await this.roleRepository.find();
+    return await this.roleRepository.find({
+      relations: ['permissions'],
+    });
   }
 
   async editRole(
@@ -33,10 +37,18 @@ export class RolesService {
       throw new NotFoundException('Role not found');
     }
 
-    await this.roleRepository.update(
+    const permissions = await this.permissionRepository.find({
+      where: { id: In(roleEditDto.permissions_id || []) },
+    });
+    if (!permissions) {
+      throw new BadRequestException('Permissions not found');
+    }
+
+    await this.roleRepository.save({
       id,
-      roleEditDto as QueryDeepPartialEntity<RoleEntity>,
-    );
+      ...roleEditDto,
+      permissions: permissions,
+    });
 
     return { message: 'Role updated successfully' };
   }
@@ -50,6 +62,15 @@ export class RolesService {
     ) {
       throw new BadRequestException('Role already exists');
     }
+
+    const permissions = await this.permissionRepository.find({
+      where: { id: In(roleAddDto.permissions_id) },
+    });
+    if (!permissions) {
+      throw new BadRequestException('Permissions not found');
+    }
+    role.permissions = permissions;
+
     return await this.roleRepository.save(role);
   }
 

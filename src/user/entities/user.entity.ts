@@ -31,6 +31,15 @@ export class User {
   @Column()
   address: string;
 
+  @Column({ default: true })
+  is_active: boolean;
+
+  @Column({ nullable: true, select: false })
+  password_hash: string;
+
+  @Column({ type: 'text', nullable: true, select: false })
+  refresh_token_hash: string | null;
+
   @ManyToOne(() => RoleEntity, { onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'role_id' })
   role: RoleEntity;

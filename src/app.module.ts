@@ -9,17 +9,18 @@ import { RolesModule } from './roles/roles.module';
 import { RoleEntity } from './roles/entities/role.entity';
 import { PermissionsModule } from './permissions/permissions.module';
 import { PermissionEntity } from './permissions/entities/permissions.entity';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
-    UserModule,
-    RolesModule,
-    PermissionsModule,
-
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
     }),
+    UserModule,
+    RolesModule,
+    PermissionsModule,
+    AuthModule,
     TypeOrmModule.forRoot({
       type: 'postgres',
       host: process.env.SQL_HOST,

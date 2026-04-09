@@ -9,6 +9,7 @@ import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { RoleEntity } from '../roles/entities/role.entity';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UserService {
@@ -36,7 +37,9 @@ export class UserService {
     return user;
   }
 
-  async addUser(userDto: UserCreateDto): Promise<User> {
+  async addUser(
+    userDto: UserCreateDto,
+  ): Promise<{ message: string; user_id: string }> {
     if (
       await this.userRepository.findOne({ where: { email: userDto.email } })
     ) {
@@ -50,12 +53,17 @@ export class UserService {
       throw new BadRequestException('Role not found');
     }
 
+    const passwordHash: string = await bcrypt.hash(userDto.password, 10);
+
     const createdUser = this.userRepository.create({
       ...userDto,
       role,
+      password_hash: passwordHash,
     });
 
-    return await this.userRepository.save(createdUser);
+    const savedUser = await this.userRepository.save(createdUser);
+
+    return { message: 'User created successfully', user_id: savedUser.id };
   }
 
   async deleteUser(id: string): Promise<{ message: string }> {

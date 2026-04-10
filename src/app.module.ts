@@ -10,6 +10,7 @@ import { RoleEntity } from './roles/entities/role.entity';
 import { PermissionsModule } from './permissions/permissions.module';
 import { PermissionEntity } from './permissions/entities/permissions.entity';
 import { AuthModule } from './auth/auth.module';
+import { RefreshToken } from './auth/entities/refresh-token.entity';
 
 @Module({
   imports: [
@@ -28,7 +29,7 @@ import { AuthModule } from './auth/auth.module';
       username: process.env.SQL_USERNAME,
       password: process.env.SQL_PASSWORD,
       database: process.env.SQL_DATABASE,
-      entities: [User, RoleEntity, PermissionEntity],
+      entities: [User, RoleEntity, PermissionEntity, RefreshToken],
       synchronize: true,
     }),
   ],

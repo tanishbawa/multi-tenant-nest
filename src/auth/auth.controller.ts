@@ -1,9 +1,17 @@
-import { Body, Controller, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthLoginDto } from './dto/auth.login.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthRefreshDto } from './dto/auth.refresh.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import type { Request } from 'express';
+
+type AuthenticatedRequest = Request & {
+  user: {
+    userId: string;
+    email: string;
+  };
+};
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -30,8 +38,8 @@ export class AuthController {
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
-  @Post('logout/:id')
-  async logout(@Param('id') id: string): Promise<{ message: string }> {
-    return await this.authService.logout(id);
+  @Post('logout')
+  async logout(@Req() req: AuthenticatedRequest): Promise<{ message: string }> {
+    return await this.authService.logout(req.user.userId);
   }
 }

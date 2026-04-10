@@ -4,11 +4,13 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
   Unique,
   UpdateDateColumn,
 } from 'typeorm';
 import { RoleEntity } from '../../roles/entities/role.entity';
+import { RefreshToken } from 'src/auth/entities/refresh-token.entity';
 
 @Entity('users')
 export class User {
@@ -37,12 +39,12 @@ export class User {
   @Column({ nullable: true, select: false })
   password_hash: string;
 
-  @Column({ type: 'text', nullable: true, select: false })
-  refresh_token_hash: string | null;
-
   @ManyToOne(() => RoleEntity, { onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'role_id' })
   role: RoleEntity;
+
+  @OneToMany(() => RefreshToken, (refreshToken) => refreshToken.user)
+  refreshTokens: RefreshToken[];
 
   @CreateDateColumn()
   created_at: Date;

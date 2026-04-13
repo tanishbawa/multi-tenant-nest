@@ -36,6 +36,9 @@ export class User {
   @Column({ default: true })
   is_active: boolean;
 
+  @Column({ type: 'int', default: 1 })
+  tenant_id: number;
+
   @Column({ nullable: true, select: false })
   password_hash: string;
 

@@ -103,6 +103,10 @@ export class UserService {
       user.role = role;
     }
 
+    if (userUpdateDto.tenant_id !== undefined) {
+      user.tenant_id = userUpdateDto.tenant_id;
+    }
+
     if (userUpdateDto.name !== undefined) user.name = userUpdateDto.name;
     if (userUpdateDto.age !== undefined) user.age = userUpdateDto.age;
     if (userUpdateDto.email !== undefined) user.email = userUpdateDto.email;
@@ -110,6 +114,13 @@ export class UserService {
       user.phone_no = userUpdateDto.phone_no;
     if (userUpdateDto.address !== undefined)
       user.address = userUpdateDto.address;
+    if (userUpdateDto.password !== undefined) {
+      const passwordHash: string = await bcrypt.hash(
+        userUpdateDto.password,
+        10,
+      );
+      user.password_hash = passwordHash;
+    }
 
     await this.userRepository.save(user);
 

@@ -3,7 +3,6 @@ import {
   Column,
   CreateDateColumn,
   Entity,
-  JoinTable,
   ManyToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
@@ -20,8 +19,7 @@ export class PermissionEntity {
   @Column()
   permission_description: string;
 
-  @ManyToMany(() => RoleEntity, (role) => role.id)
-  @JoinTable({ name: 'roles_id' })
+  @ManyToMany(() => RoleEntity, (role) => role.permissions)
   roles: RoleEntity[];
 
   @CreateDateColumn()

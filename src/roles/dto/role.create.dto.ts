@@ -13,9 +13,6 @@ export class RoleCreateDto {
   @IsEnum(ROLE_NAMES)
   role_name: string;
 
-  @ApiProperty({ example: 1 })
-  tenant_id: number;
-
   @ApiProperty({ example: false })
   @IsBoolean()
   @IsOptional()

@@ -14,25 +14,31 @@ import { UserUpdateDto } from './dto/user.update.dto';
 import { User } from './entities/user.entity';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { PermissionsGuard } from 'src/auth/permissions.guard';
+import { Permissions } from 'src/auth/decorators/permissions.decorator';
+import { PERMISSION_NAMES } from 'src/config/constants';
 
 @ApiTags('User')
 @ApiBearerAuth()
 @Controller('user')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
   @Get('allUsers')
+  @Permissions(PERMISSION_NAMES.READ_USER)
   async getAllUsers(): Promise<User[]> {
     return await this.userService.getAllUsers();
   }
 
   @Get(':id')
+  @Permissions(PERMISSION_NAMES.READ_USER)
   getUserDetails(@Param('id') id: string): Promise<User | null> {
     return this.userService.getUserDetails(id);
   }
 
   @Post()
+  @Permissions(PERMISSION_NAMES.CREATE_USER)
   async addUser(
     @Body() userDto: UserCreateDto,
   ): Promise<{ message: string; user_id: string }> {
@@ -40,6 +46,7 @@ export class UserController {
   }
 
   @Put(':id')
+  @Permissions(PERMISSION_NAMES.UPDATE_USER)
   async updateUser(
     @Param('id') id: string,
     @Body() userUpdateDto: UserUpdateDto,
@@ -48,6 +55,7 @@ export class UserController {
   }
 
   @Delete(':id')
+  @Permissions(PERMISSION_NAMES.DELETE_USER)
   async deleteUser(@Param('id') id: string): Promise<{ message: string }> {
     return await this.userService.deleteUser(id);
   }

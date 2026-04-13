@@ -17,14 +17,15 @@ export class RoleEntity {
   @Column()
   role_name: string;
 
-  @Column()
-  tenant_id: number;
-
   @Column({ default: false })
   built_in: boolean;
 
-  @ManyToMany(() => PermissionEntity, (permission) => permission.id)
-  @JoinTable({ name: 'permissions_id' })
+  @ManyToMany(() => PermissionEntity, (permission) => permission.roles)
+  @JoinTable({
+    name: 'role_permissions',
+    joinColumn: { name: 'role_id', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'permission_id', referencedColumnName: 'id' },
+  })
   permissions: PermissionEntity[];
 
   @CreateDateColumn()

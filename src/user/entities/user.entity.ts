@@ -2,15 +2,20 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  JoinColumn,
+  ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
   Unique,
   UpdateDateColumn,
 } from 'typeorm';
+import { RoleEntity } from '../../roles/entities/role.entity';
+import { RefreshToken } from 'src/auth/entities/refresh-token.entity';
 
 @Entity('users')
 export class User {
-  @PrimaryGeneratedColumn()
-  id: number;
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
 
   @Column()
   name: string;
@@ -27,6 +32,22 @@ export class User {
 
   @Column()
   address: string;
+
+  @Column({ default: true })
+  is_active: boolean;
+
+  @Column({ type: 'int', default: 1 })
+  tenant_id: number;
+
+  @Column({ nullable: true, select: false })
+  password_hash: string;
+
+  @ManyToOne(() => RoleEntity, { onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'role_id' })
+  role: RoleEntity;
+
+  @OneToMany(() => RefreshToken, (refreshToken) => refreshToken.user)
+  refreshTokens: RefreshToken[];
 
   @CreateDateColumn()
   created_at: Date;

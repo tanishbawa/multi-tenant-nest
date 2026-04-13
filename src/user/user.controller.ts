@@ -1,27 +1,62 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+  UseGuards,
+} from '@nestjs/common';
 import { UserService } from './user.service';
 import { UserCreateDto } from './dto/user.create.dto';
+import { UserUpdateDto } from './dto/user.update.dto';
 import { User } from './entities/user.entity';
-import { UserGetDto } from './dto/user.get.dto';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { PermissionsGuard } from 'src/auth/permissions.guard';
+import { Permissions } from 'src/auth/decorators/permissions.decorator';
+import { PERMISSION_NAMES } from 'src/config/constants';
 
-@ApiTags('user')
+@ApiTags('User')
+@ApiBearerAuth()
 @Controller('user')
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-  @Get('allUsersEmail')
-  async getAllUsersEmail(): Promise<User[]> {
-    return await this.userService.getAllUsersEmail();
+  @Get('allUsers')
+  @Permissions(PERMISSION_NAMES.READ_USER)
+  async getAllUsers(): Promise<User[]> {
+    return await this.userService.getAllUsers();
   }
 
-  @Post('details')
-  getUserDetails(@Body() userGetDto: UserGetDto): Promise<User | null> {
-    return this.userService.getUserDetails(userGetDto);
+  @Get(':id')
+  @Permissions(PERMISSION_NAMES.READ_USER)
+  getUserDetails(@Param('id') id: string): Promise<User | null> {
+    return this.userService.getUserDetails(id);
   }
 
-  @Post('addUser')
-  async addUser(@Body() userDto: UserCreateDto): Promise<User> {
+  @Post()
+  @Permissions(PERMISSION_NAMES.CREATE_USER)
+  async addUser(
+    @Body() userDto: UserCreateDto,
+  ): Promise<{ message: string; user_id: string }> {
     return await this.userService.addUser(userDto);
+  }
+
+  @Put(':id')
+  @Permissions(PERMISSION_NAMES.UPDATE_USER)
+  async updateUser(
+    @Param('id') id: string,
+    @Body() userUpdateDto: UserUpdateDto,
+  ): Promise<{ message: string }> {
+    return await this.userService.updateUser(userUpdateDto, id);
+  }
+
+  @Delete(':id')
+  @Permissions(PERMISSION_NAMES.DELETE_USER)
+  async deleteUser(@Param('id') id: string): Promise<{ message: string }> {
+    return await this.userService.deleteUser(id);
   }
 }

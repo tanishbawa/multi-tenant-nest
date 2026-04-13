@@ -5,6 +5,12 @@ import { AppService } from './app.service';
 import { UserModule } from './user/user.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from './user/entities/user.entity';
+import { RolesModule } from './roles/roles.module';
+import { RoleEntity } from './roles/entities/role.entity';
+import { PermissionsModule } from './permissions/permissions.module';
+import { PermissionEntity } from './permissions/entities/permissions.entity';
+import { AuthModule } from './auth/auth.module';
+import { RefreshToken } from './auth/entities/refresh-token.entity';
 
 @Module({
   imports: [
@@ -13,6 +19,9 @@ import { User } from './user/entities/user.entity';
       envFilePath: '.env',
     }),
     UserModule,
+    RolesModule,
+    PermissionsModule,
+    AuthModule,
     TypeOrmModule.forRoot({
       type: 'postgres',
       host: process.env.SQL_HOST,
@@ -20,7 +29,7 @@ import { User } from './user/entities/user.entity';
       username: process.env.SQL_USERNAME,
       password: process.env.SQL_PASSWORD,
       database: process.env.SQL_DATABASE,
-      entities: [User],
+      entities: [User, RoleEntity, PermissionEntity, RefreshToken],
       synchronize: true,
     }),
   ],

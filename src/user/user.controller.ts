@@ -6,6 +6,8 @@ import {
   Param,
   Post,
   Put,
+  Query,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { UserService } from './user.service';
@@ -17,6 +19,8 @@ import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { PermissionsGuard } from 'src/auth/permissions.guard';
 import { Permissions } from 'src/auth/decorators/permissions.decorator';
 import { PERMISSION_NAMES } from 'src/config/constants';
+import { PaginatedResult } from 'src/config/types';
+import { UserQueryDto } from './dto/user.query.dto';
 
 @ApiTags('User')
 @ApiBearerAuth()
@@ -27,8 +31,11 @@ export class UserController {
 
   @Get('allUsers')
   @Permissions(PERMISSION_NAMES.READ_USER)
-  async getAllUsers(): Promise<User[]> {
-    return await this.userService.getAllUsers();
+  async getAllUsers(
+    @Req() req: { user?: { userId?: string } },
+    @Query() query: UserQueryDto,
+  ): Promise<PaginatedResult<User>> {
+    return await this.userService.getAllUsers(query, req.user?.userId ?? '');
   }
 
   @Get(':id')

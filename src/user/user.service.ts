@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -10,6 +11,8 @@ import { User } from './entities/user.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { RoleEntity } from '../roles/entities/role.entity';
 import * as bcrypt from 'bcrypt';
+import { UserQueryDto } from './dto/user.query.dto';
+import { PaginatedResult } from 'src/config/types';
 
 @Injectable()
 export class UserService {
@@ -20,8 +23,65 @@ export class UserService {
     private readonly roleRepository: Repository<RoleEntity>,
   ) {}
 
-  async getAllUsers(): Promise<User[]> {
-    return await this.userRepository.find();
+  async getAllUsers(
+    query: UserQueryDto,
+    requesterUserId: string,
+  ): Promise<PaginatedResult<User>> {
+    if (!requesterUserId) {
+      throw new ForbiddenException('Access denied');
+    }
+
+    const requester = await this.userRepository.findOne({
+      where: { id: requesterUserId },
+      select: ['id', 'tenant_id', 'is_active'],
+    });
+
+    if (!requester?.is_active) {
+      throw new ForbiddenException('Access denied');
+    }
+
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+    const skip = (page - 1) * limit;
+    const search = query.search?.trim();
+
+    const qb = this.userRepository
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.role', 'role')
+      .orderBy('user.created_at', 'DESC')
+      .addOrderBy('user.id', 'DESC') // stable pagination order
+      .skip(skip)
+      .take(limit);
+
+    qb.andWhere('user.tenant_id = :tenantId', {
+      tenantId: requester.tenant_id,
+    });
+
+    if (search) {
+      qb.andWhere('(user.name ILIKE :search OR user.email ILIKE :search)', {
+        search: `%${search}%`,
+      });
+    }
+    if (query.is_active !== undefined) {
+      qb.andWhere('user.is_active = :isActive', { isActive: query.is_active });
+    }
+    if (query.email) {
+      qb.andWhere('user.email = :email', { email: query.email });
+    }
+
+    const [data, total] = await qb.getManyAndCount();
+    const totalPages = total === 0 ? 0 : Math.ceil(total / limit);
+    return {
+      data,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+    };
   }
 
   async getUserDetails(id: string): Promise<User | null> {

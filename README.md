@@ -31,6 +31,42 @@
 $ npm install
 ```
 
+## Environment setup
+
+```bash
+$ cp .env.example .env
+```
+
+Update `.env` with your local database and JWT values before starting the app.
+
+## Local Redis (Docker)
+
+```bash
+$ docker compose up -d redis
+```
+
+Redis defaults are configured via:
+
+- `REDIS_HOST`
+- `REDIS_PORT`
+- `REDIS_PASSWORD`
+- `REDIS_DB`
+- `REDIS_TLS`
+
+If you see `docker-credential-desktop: executable file not found`, remove the Docker Desktop credential helper from `~/.docker/config.json`:
+
+```bash
+python3 - <<'PY'
+import json
+from pathlib import Path
+p = Path.home() / ".docker" / "config.json"
+data = json.loads(p.read_text())
+data.pop("credsStore", None)
+p.write_text(json.dumps(data, indent=2) + "\n")
+print("Updated", p)
+PY
+```
+
 ## Compile and run the project
 
 ```bash

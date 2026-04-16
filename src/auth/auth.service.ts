@@ -1,4 +1,5 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from 'src/user/entities/user.entity';
 import { IsNull, MoreThan, Repository } from 'typeorm';
@@ -10,6 +11,12 @@ import { randomUUID } from 'node:crypto';
 import { AuthRefreshDto } from './dto/auth.refresh.dto';
 import type { StringValue } from 'ms';
 import { RefreshToken } from './entities/refresh-token.entity';
+import { Queue } from 'bullmq';
+import {
+  AUDIT_JOB_NAME,
+  AUDIT_QUEUE_NAME,
+  AuditJobData,
+} from 'src/queue/queue.constants';
 
 type TokenPayload = {
   sub: string;
@@ -43,6 +50,8 @@ const hasNumericExp = (value: unknown): value is { exp: number } => {
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
@@ -50,6 +59,8 @@ export class AuthService {
     private readonly refreshTokenRepository: Repository<RefreshToken>,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    @InjectQueue(AUDIT_QUEUE_NAME)
+    private readonly auditQueue: Queue<AuditJobData>,
   ) {}
 
   async login(authLoginDto: AuthLoginDto): Promise<{
@@ -94,6 +105,12 @@ export class AuthService {
       jti: randomUUID(),
     });
     await this.storeRefreshToken(user, refreshToken);
+    await this.enqueueAuditEvent({
+      event: 'auth.login.succeeded',
+      userId: user.id,
+      actorUserId: user.id,
+      occurredAt: new Date().toISOString(),
+    });
 
     return {
       message: 'Login successful',
@@ -206,6 +223,12 @@ export class AuthService {
       { user: { id: user.id }, revoked_at: IsNull() },
       { revoked_at: new Date() },
     );
+    await this.enqueueAuditEvent({
+      event: 'auth.logout',
+      userId: user.id,
+      actorUserId: user.id,
+      occurredAt: new Date().toISOString(),
+    });
 
     return { message: 'Logged out successfully' };
   }
@@ -274,5 +297,16 @@ export class AuthService {
     }
 
     return new Date(decoded.exp * 1000);
+  }
+
+  private async enqueueAuditEvent(payload: AuditJobData): Promise<void> {
+    try {
+      await this.auditQueue.add(AUDIT_JOB_NAME, payload);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'unknown';
+      this.logger.warn(
+        `queue.enqueue_failed queue=${AUDIT_QUEUE_NAME} event=${payload.event} reason=${message}`,
+      );
+    }
   }
 }

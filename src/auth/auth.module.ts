@@ -10,10 +10,12 @@ import { JwtStrategy } from './jwt.strategy';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { PermissionsGuard } from './permissions.guard';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { QueueModule } from 'src/queue/queue.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([User, RefreshToken]),
+    QueueModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],

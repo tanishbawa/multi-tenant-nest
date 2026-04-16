@@ -1,5 +1,6 @@
+import { CacheModule } from '@nestjs/cache-manager';
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UserModule } from './user/user.module';
@@ -11,6 +12,10 @@ import { PermissionsModule } from './permissions/permissions.module';
 import { PermissionEntity } from './permissions/entities/permissions.entity';
 import { AuthModule } from './auth/auth.module';
 import { RefreshToken } from './auth/entities/refresh-token.entity';
+import KeyvRedis from '@keyv/redis';
+import { Keyv } from 'keyv';
+import { getRedisConfig, getRedisUrl } from './config/redis.config';
+import { QueueModule } from './queue/queue.module';
 
 @Module({
   imports: [
@@ -18,10 +23,26 @@ import { RefreshToken } from './auth/entities/refresh-token.entity';
       isGlobal: true,
       envFilePath: '.env',
     }),
+    CacheModule.registerAsync({
+      isGlobal: true,
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => {
+        const redisConfig = getRedisConfig(configService);
+        return {
+          stores: [
+            new Keyv({
+              store: new KeyvRedis(getRedisUrl(redisConfig)),
+            }),
+          ],
+        };
+      },
+    }),
     UserModule,
     RolesModule,
     PermissionsModule,
     AuthModule,
+    QueueModule,
     TypeOrmModule.forRoot({
       type: 'postgres',
       host: process.env.SQL_HOST,

@@ -20,12 +20,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: {
+  validate(payload: {
     sub: string;
     email: string;
     typ: 'access';
     jti: string;
-  }): Promise<{ userId: string; email: string }> {
+  }): { userId: string; email: string } {
     if (payload.typ !== 'access') {
       throw new UnauthorizedException('Invalid token type');
     }

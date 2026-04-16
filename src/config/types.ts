@@ -9,3 +9,11 @@ export interface PaginatedResult<T> {
     hasPrev: boolean;
   };
 }
+
+export interface RedisConfig {
+  host: string;
+  port: number;
+  password?: string;
+  db: number;
+  tls: boolean;
+}

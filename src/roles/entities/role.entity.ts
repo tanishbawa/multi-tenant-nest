@@ -1,21 +1,32 @@
 import { PermissionEntity } from 'src/permissions/entities/permissions.entity';
+import { TenantEntity } from 'src/tenant/entities/tenant.entity';
 import {
   Column,
   CreateDateColumn,
   Entity,
+  JoinColumn,
   JoinTable,
   ManyToMany,
+  ManyToOne,
   PrimaryGeneratedColumn,
-  UpdateDateColumn,
+  Unique,
 } from 'typeorm';
 
 @Entity('roles')
+@Unique(['tenant', 'code'])
 export class RoleEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @ManyToOne(() => TenantEntity, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'tenant_id' })
+  tenant: TenantEntity;
+
   @Column()
-  role_name: string;
+  code: string;
+
+  @Column()
+  name: string;
 
   @Column({ default: false })
   built_in: boolean;
@@ -28,9 +39,6 @@ export class RoleEntity {
   })
   permissions: PermissionEntity[];
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'timestamptz' })
   created_at: Date;
-
-  @UpdateDateColumn()
-  updated_at: Date;
 }

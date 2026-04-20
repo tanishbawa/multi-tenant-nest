@@ -1,30 +1,17 @@
 import { RoleEntity } from 'src/roles/entities/role.entity';
-import {
-  Column,
-  CreateDateColumn,
-  Entity,
-  ManyToMany,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
-} from 'typeorm';
+import { Column, Entity, ManyToMany, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity('permissions')
 export class PermissionEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
-  permission_name: string;
+  @Column({ unique: true })
+  code: string;
 
-  @Column()
-  permission_description: string;
+  @Column({ type: 'text', nullable: true })
+  description: string | null;
 
   @ManyToMany(() => RoleEntity, (role) => role.permissions)
   roles: RoleEntity[];
-
-  @CreateDateColumn()
-  created_at: Date;
-
-  @UpdateDateColumn()
-  updated_at: Date;
 }

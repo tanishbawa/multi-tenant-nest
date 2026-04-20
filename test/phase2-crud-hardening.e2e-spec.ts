@@ -64,7 +64,7 @@ describe('Phase 2 CRUD Hardening (e2e)', () => {
     phone_no: '1234567890',
     address: '123 Main St',
     role_id: '44106010-d79a-4263-b779-1851d63d4a22',
-    tenant_id: 1,
+    tenant_id: '00000000-0000-4000-8000-000000000001',
   };
 
   beforeEach(async () => {
@@ -97,11 +97,17 @@ describe('Phase 2 CRUD Hardening (e2e)', () => {
       getAllRoles: jest
         .fn()
         .mockResolvedValue([
-          { id: 'role-1', role_name: 'admin', built_in: true } as RoleEntity,
+          {
+            id: 'role-1',
+            code: 'ADMIN',
+            name: 'Admin',
+            built_in: true,
+          } as RoleEntity,
         ]),
       addRole: jest.fn().mockResolvedValue({
         id: 'role-2',
-        role_name: 'editor',
+        code: 'EDITOR',
+        name: 'Editor',
         built_in: false,
       }),
       editRole: jest
@@ -116,8 +122,8 @@ describe('Phase 2 CRUD Hardening (e2e)', () => {
       getAllPermissions: jest.fn().mockResolvedValue([]),
       createPermission: jest.fn().mockResolvedValue({
         id: 'perm-1',
-        permission_name: 'create_user',
-        permission_description: 'Create user permission',
+        code: 'create_user',
+        description: 'Create user permission',
       }),
       editPermission: jest
         .fn()
@@ -272,7 +278,7 @@ describe('Phase 2 CRUD Hardening (e2e)', () => {
 
     expect(response.body).toEqual({
       message: 'Roles fetched successfully',
-      data: [{ id: 'role-1', role_name: 'admin', built_in: true }],
+      data: [{ id: 'role-1', code: 'ADMIN', name: 'Admin', built_in: true }],
     });
   });
 
@@ -282,8 +288,8 @@ describe('Phase 2 CRUD Hardening (e2e)', () => {
       .set('authorization', 'Bearer valid-token')
       .set('x-permission-allow', 'true')
       .send({
-        permission_name: 'create_user',
-        permission_description: 'Create user permission',
+        code: 'create_user',
+        description: 'Create user permission',
       })
       .expect(201);
 
@@ -291,8 +297,8 @@ describe('Phase 2 CRUD Hardening (e2e)', () => {
       message: 'Permission created successfully',
       data: {
         id: 'perm-1',
-        permission_name: 'create_user',
-        permission_description: 'Create user permission',
+        code: 'create_user',
+        description: 'Create user permission',
       },
     });
   });

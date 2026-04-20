@@ -9,15 +9,24 @@ import {
 } from 'class-validator';
 
 export class RoleCreateDto {
-  @ApiProperty({ example: 'editor' })
+  @ApiProperty({ example: '00000000-0000-4000-8000-000000000001' })
+  @IsUUID()
+  tenant_id: string;
+
+  @ApiProperty({ example: 'EDITOR' })
   @IsString()
   @IsNotEmpty()
-  role_name: string;
+  code: string;
+
+  @ApiProperty({ example: 'Content Editor' })
+  @IsString()
+  @IsNotEmpty()
+  name: string;
 
   @ApiProperty({ example: false })
   @IsBoolean()
   @IsOptional()
-  built_in: boolean;
+  built_in?: boolean;
 
   @ApiProperty({
     example: [

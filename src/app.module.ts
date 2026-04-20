@@ -16,6 +16,13 @@ import KeyvRedis from '@keyv/redis';
 import { Keyv } from 'keyv';
 import { getRedisConfig, getRedisUrl } from './config/redis.config';
 import { QueueModule } from './queue/queue.module';
+import { TenantEntity } from './tenant/entities/tenant.entity';
+import { UserRoleEntity } from './user/entities/user-role.entity';
+import { PolicyEntity } from './policies/entities/policy.entity';
+import { AuditLogEntity } from './audit/entities/audit-log.entity';
+import { WebhookEndpointEntity } from './webhooks/entities/webhook-endpoint.entity';
+import { WebhookDeliveryEntity } from './webhooks/entities/webhook-delivery.entity';
+import { Phase3InitialSpecSchema1745123400000 } from './database/migrations/1745123400000-phase3-initial-spec-schema';
 
 @Module({
   imports: [
@@ -50,8 +57,22 @@ import { QueueModule } from './queue/queue.module';
       username: process.env.SQL_USERNAME,
       password: process.env.SQL_PASSWORD,
       database: process.env.SQL_DATABASE,
-      entities: [User, RoleEntity, PermissionEntity, RefreshToken],
-      synchronize: true,
+      entities: [
+        User,
+        UserRoleEntity,
+        RoleEntity,
+        PermissionEntity,
+        RefreshToken,
+        TenantEntity,
+        PolicyEntity,
+        AuditLogEntity,
+        WebhookEndpointEntity,
+        WebhookDeliveryEntity,
+      ],
+      migrations: [Phase3InitialSpecSchema1745123400000],
+      migrationsRun: false,
+      synchronize:
+        (process.env.TYPEORM_SYNCHRONIZE ?? '').toLowerCase() === 'true',
     }),
   ],
   controllers: [AppController],

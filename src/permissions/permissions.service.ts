@@ -19,15 +19,18 @@ export class PermissionsService {
   async createPermission(
     permissionCreateDto: PermissionsCreateDto,
   ): Promise<PermissionEntity> {
-    const permission = this.permissionRepository.create(permissionCreateDto);
-
     if (
       await this.permissionRepository.findOne({
-        where: { permission_name: permissionCreateDto.permission_name },
+        where: { code: permissionCreateDto.code },
       })
     ) {
       throw new ConflictException('Permission already exists');
     }
+
+    const permission = this.permissionRepository.create({
+      code: permissionCreateDto.code,
+      description: permissionCreateDto.description ?? null,
+    });
 
     return await this.permissionRepository.save(permission);
   }
@@ -49,18 +52,25 @@ export class PermissionsService {
     }
 
     if (
-      permissionEditDto.permission_name !== undefined &&
-      permissionEditDto.permission_name !== permission.permission_name
+      permissionEditDto.code !== undefined &&
+      permissionEditDto.code !== permission.code
     ) {
       const existingPermission = await this.permissionRepository.findOne({
-        where: { permission_name: permissionEditDto.permission_name },
+        where: { code: permissionEditDto.code },
       });
       if (existingPermission && existingPermission.id !== permission.id) {
         throw new ConflictException('Permission already exists');
       }
     }
 
-    await this.permissionRepository.update(id, permissionEditDto);
+    await this.permissionRepository.update(id, {
+      ...(permissionEditDto.code !== undefined && {
+        code: permissionEditDto.code,
+      }),
+      ...(permissionEditDto.description !== undefined && {
+        description: permissionEditDto.description ?? null,
+      }),
+    });
 
     return { message: 'Permission updated successfully' };
   }

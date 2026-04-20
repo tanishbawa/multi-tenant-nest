@@ -1,3 +1,5 @@
+import { RefreshToken } from 'src/auth/entities/refresh-token.entity';
+import { TenantEntity } from 'src/tenant/entities/tenant.entity';
 import {
   Column,
   CreateDateColumn,
@@ -9,8 +11,7 @@ import {
   Unique,
   UpdateDateColumn,
 } from 'typeorm';
-import { RoleEntity } from '../../roles/entities/role.entity';
-import { RefreshToken } from 'src/auth/entities/refresh-token.entity';
+import { UserRoleEntity } from './user-role.entity';
 
 @Entity('users')
 export class User {
@@ -36,15 +37,15 @@ export class User {
   @Column({ default: true })
   is_active: boolean;
 
-  @Column({ type: 'int', default: 1 })
-  tenant_id: number;
+  @ManyToOne(() => TenantEntity, { onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'tenant_id' })
+  tenant: TenantEntity;
 
   @Column({ nullable: true, select: false })
   password_hash: string;
 
-  @ManyToOne(() => RoleEntity, { onDelete: 'RESTRICT' })
-  @JoinColumn({ name: 'role_id' })
-  role: RoleEntity;
+  @OneToMany(() => UserRoleEntity, (ur) => ur.user)
+  userRoles: UserRoleEntity[];
 
   @OneToMany(() => RefreshToken, (refreshToken) => refreshToken.user)
   refreshTokens: RefreshToken[];

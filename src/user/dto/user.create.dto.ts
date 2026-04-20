@@ -44,7 +44,7 @@ export class UserCreateDto {
   @IsUUID()
   role_id: string;
 
-  @ApiProperty({ example: 1 })
-  @IsInt()
-  tenant_id: number;
+  @ApiProperty({ example: '00000000-0000-4000-8000-000000000001' })
+  @IsUUID()
+  tenant_id: string;
 }

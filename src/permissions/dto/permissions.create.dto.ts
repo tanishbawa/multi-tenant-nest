@@ -1,14 +1,14 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsNotEmpty, IsString } from 'class-validator';
-import { PERMISSION_NAMES } from 'src/config/constants';
+import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class PermissionsCreateDto {
-  @ApiProperty({ example: 'create_user, read_user, update_user, delete_user' })
-  @IsEnum(PERMISSION_NAMES)
-  permission_name: string;
-
-  @ApiProperty({ example: 'Create a new user' })
+  @ApiProperty({ example: 'users.read' })
   @IsString()
   @IsNotEmpty()
-  permission_description: string;
+  code: string;
+
+  @ApiProperty({ example: 'Read users', required: false })
+  @IsString()
+  @IsOptional()
+  description?: string;
 }

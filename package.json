@@ -17,7 +17,11 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "typeorm": "node -r tsconfig-paths/register ./node_modules/typeorm/cli-ts-node-commonjs.js",
+    "migration:run": "npm run typeorm -- -d src/database/data-source.ts migration:run",
+    "migration:revert": "npm run typeorm -- -d src/database/data-source.ts migration:revert",
+    "db:reset-seed": "ts-node -r tsconfig-paths/register src/database/scripts/reset-and-seed.ts"
   },
   "dependencies": {
     "@keyv/redis": "^5.1.6",
@@ -59,6 +63,7 @@
     "@types/node": "^22.10.7",
     "@types/passport-jwt": "^4.0.1",
     "@types/supertest": "^6.0.2",
+    "dotenv": "^17.4.2",
     "eslint": "^9.18.0",
     "eslint-config-prettier": "^10.0.1",
     "eslint-plugin-prettier": "^5.2.2",

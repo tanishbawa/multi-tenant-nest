@@ -16,6 +16,8 @@ import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { RoleEntity } from '../roles/entities/role.entity';
+import { TenantEntity } from 'src/tenant/entities/tenant.entity';
+import { UserRoleEntity } from './entities/user-role.entity';
 import * as bcrypt from 'bcrypt';
 import { UserQueryDto } from './dto/user.query.dto';
 import { PaginatedResult } from 'src/config/types';
@@ -37,6 +39,10 @@ export class UserService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(RoleEntity)
     private readonly roleRepository: Repository<RoleEntity>,
+    @InjectRepository(TenantEntity)
+    private readonly tenantRepository: Repository<TenantEntity>,
+    @InjectRepository(UserRoleEntity)
+    private readonly userRoleRepository: Repository<UserRoleEntity>,
     @Inject(CACHE_MANAGER)
     private readonly cacheManager: Cache,
     @InjectQueue(AUDIT_QUEUE_NAME)
@@ -53,28 +59,26 @@ export class UserService {
 
     const requester = await this.userRepository.findOne({
       where: { id: requesterUserId },
-      select: ['id', 'tenant_id', 'is_active'],
+      relations: ['tenant'],
     });
 
-    if (!requester?.is_active) {
+    if (!requester?.is_active || !requester.tenant) {
       throw new ForbiddenException('Access denied');
     }
 
+    const tenantId = requester.tenant.id;
+
     const listCacheKey = this.buildUserListCacheKey(
-      requester.tenant_id,
+      tenantId,
       requesterUserId,
       query,
     );
     const cached = await this.getFromCache<PaginatedResult<User>>(listCacheKey);
     if (cached) {
-      this.logger.debug(
-        `cache.hit key_prefix=user:list tenant=${requester.tenant_id}`,
-      );
+      this.logger.debug(`cache.hit key_prefix=user:list tenant=${tenantId}`);
       return cached;
     }
-    this.logger.debug(
-      `cache.miss key_prefix=user:list tenant=${requester.tenant_id}`,
-    );
+    this.logger.debug(`cache.miss key_prefix=user:list tenant=${tenantId}`);
 
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
@@ -83,14 +87,17 @@ export class UserService {
 
     const qb = this.userRepository
       .createQueryBuilder('user')
-      .leftJoinAndSelect('user.role', 'role')
+      .leftJoinAndSelect('user.tenant', 'tenant')
+      .leftJoinAndSelect('user.userRoles', 'userRoles')
+      .leftJoinAndSelect('userRoles.role', 'role')
+      .leftJoinAndSelect('role.permissions', 'permissions')
       .orderBy('user.created_at', 'DESC')
-      .addOrderBy('user.id', 'DESC') // stable pagination order
+      .addOrderBy('user.id', 'DESC')
       .skip(skip)
       .take(limit);
 
-    qb.andWhere('user.tenant_id = :tenantId', {
-      tenantId: requester.tenant_id,
+    qb.andWhere('tenant.id = :tenantId', {
+      tenantId,
     });
 
     if (search) {
@@ -120,7 +127,7 @@ export class UserService {
     };
 
     await this.setInCache(listCacheKey, result, this.userListTtlMs);
-    await this.rememberUserListKey(requester.tenant_id, listCacheKey);
+    await this.rememberUserListKey(tenantId, listCacheKey);
 
     return result;
   }
@@ -136,7 +143,12 @@ export class UserService {
 
     const user = await this.userRepository.findOne({
       where: { id: id },
-      relations: ['role', 'role.permissions'],
+      relations: [
+        'tenant',
+        'userRoles',
+        'userRoles.role',
+        'userRoles.role.permissions',
+      ],
     });
 
     if (!user) {
@@ -156,10 +168,18 @@ export class UserService {
       throw new ConflictException('Email already exists');
     }
 
+    const tenant = await this.tenantRepository.findOne({
+      where: { id: userDto.tenant_id },
+    });
+    if (!tenant) {
+      throw new NotFoundException('Tenant not found');
+    }
+
     const role = await this.roleRepository.findOne({
       where: { id: userDto.role_id },
+      relations: ['tenant'],
     });
-    if (!role) {
+    if (!role?.tenant || role.tenant.id !== userDto.tenant_id) {
       throw new NotFoundException('Role not found');
     }
 
@@ -171,18 +191,25 @@ export class UserService {
       email: userDto.email,
       phone_no: userDto.phone_no,
       address: userDto.address,
-      tenant_id: userDto.tenant_id,
-      role,
+      tenant,
       password_hash: passwordHash,
     });
 
     const savedUser: User = await this.userRepository.save(createdUser);
-    await this.invalidateUserCache(savedUser.id, savedUser.tenant_id);
+
+    await this.userRoleRepository.save(
+      this.userRoleRepository.create({
+        user: savedUser,
+        role,
+      }),
+    );
+
+    await this.invalidateUserCache(savedUser.id, userDto.tenant_id);
     await this.enqueueAuditEvent({
       event: 'user.created',
       userId: savedUser.id,
       actorUserId: savedUser.id,
-      metadata: { tenant_id: savedUser.tenant_id, role_id: role.id },
+      metadata: { tenant_id: userDto.tenant_id, role_id: role.id },
       occurredAt: new Date().toISOString(),
     });
 
@@ -192,18 +219,21 @@ export class UserService {
   async deleteUser(id: string): Promise<{ message: string }> {
     const user = await this.userRepository.findOne({
       where: { id: id },
+      relations: ['tenant'],
     });
 
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
+    const tenantId = user.tenant.id;
+
     await this.userRepository.delete(id);
-    await this.invalidateUserCache(id, user.tenant_id);
+    await this.invalidateUserCache(id, tenantId);
     await this.enqueueAuditEvent({
       event: 'user.deleted',
       userId: id,
-      metadata: { tenant_id: user.tenant_id },
+      metadata: { tenant_id: tenantId },
       occurredAt: new Date().toISOString(),
     });
 
@@ -216,22 +246,31 @@ export class UserService {
   ): Promise<{ message: string }> {
     const user = await this.userRepository.findOne({
       where: { id: id },
-      relations: ['role'],
+      relations: ['tenant', 'userRoles'],
     });
 
     if (!user) {
       throw new NotFoundException('User not found');
     }
-    const previousTenantId = user.tenant_id;
+    const previousTenantId = user.tenant.id;
 
     if (userUpdateDto.role_id !== undefined) {
       const role = await this.roleRepository.findOne({
         where: { id: userUpdateDto.role_id },
+        relations: ['tenant'],
       });
-      if (!role) {
+      if (!role?.tenant || role.tenant.id !== user.tenant.id) {
         throw new NotFoundException('Role not found');
       }
-      user.role = role;
+      await this.userRoleRepository
+        .createQueryBuilder()
+        .delete()
+        .from(UserRoleEntity)
+        .where('user_id = :userId', { userId: user.id })
+        .execute();
+      await this.userRoleRepository.save(
+        this.userRoleRepository.create({ user, role }),
+      );
     }
 
     if (
@@ -248,7 +287,13 @@ export class UserService {
     }
 
     if (userUpdateDto.tenant_id !== undefined) {
-      user.tenant_id = userUpdateDto.tenant_id;
+      const tenant = await this.tenantRepository.findOne({
+        where: { id: userUpdateDto.tenant_id },
+      });
+      if (!tenant) {
+        throw new NotFoundException('Tenant not found');
+      }
+      user.tenant = tenant;
     }
 
     if (userUpdateDto.name !== undefined) user.name = userUpdateDto.name;
@@ -269,15 +314,16 @@ export class UserService {
     }
 
     await this.userRepository.save(user);
-    await this.invalidateUserCache(user.id, user.tenant_id);
-    if (previousTenantId !== user.tenant_id) {
+    const nextTenantId = user.tenant.id;
+    await this.invalidateUserCache(user.id, nextTenantId);
+    if (previousTenantId !== nextTenantId) {
       await this.invalidateUserListByTenant(previousTenantId);
     }
     await this.enqueueAuditEvent({
       event: 'user.updated',
       userId: user.id,
       metadata: {
-        tenant_id: user.tenant_id,
+        tenant_id: nextTenantId,
         previous_tenant_id: previousTenantId,
       },
       occurredAt: new Date().toISOString(),
@@ -287,7 +333,7 @@ export class UserService {
   }
 
   private buildUserListCacheKey(
-    tenantId: number,
+    tenantId: string,
     requesterUserId: string,
     query: UserQueryDto,
   ): string {
@@ -305,12 +351,12 @@ export class UserService {
     return `user:detail:${userId}`;
   }
 
-  private buildUserListIndexKey(tenantId: number): string {
+  private buildUserListIndexKey(tenantId: string): string {
     return `user:list:index:tenant:${tenantId}`;
   }
 
   private async rememberUserListKey(
-    tenantId: number,
+    tenantId: string,
     cacheKey: string,
   ): Promise<void> {
     const indexKey = this.buildUserListIndexKey(tenantId);
@@ -325,14 +371,14 @@ export class UserService {
 
   private async invalidateUserCache(
     userId: string,
-    tenantId: number,
+    tenantId: string,
   ): Promise<void> {
     await this.deleteFromCache(this.buildUserDetailsCacheKey(userId));
     await this.deleteFromCache(`perm:user:${userId}`);
     await this.invalidateUserListByTenant(tenantId);
   }
 
-  private async invalidateUserListByTenant(tenantId: number): Promise<void> {
+  private async invalidateUserListByTenant(tenantId: string): Promise<void> {
     const indexKey = this.buildUserListIndexKey(tenantId);
     const keys = (await this.getFromCache<string[]>(indexKey)) ?? [];
     for (const key of keys) {

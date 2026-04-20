@@ -62,16 +62,21 @@ export class PermissionsGuard implements CanActivate {
 
     const user = await this.userRepository.findOne({
       where: { id: userId },
-      relations: ['role', 'role.permissions'],
+      relations: ['userRoles', 'userRoles.role', 'userRoles.role.permissions'],
     });
 
-    if (!user?.is_active || !user.role) {
+    if (!user?.is_active || !user.userRoles?.length) {
       throw new ForbiddenException('Insufficient permissions');
     }
 
-    const permissions = (user.role.permissions ?? []).map(
-      (permission) => permission.permission_name,
-    ) as PERMISSION_NAMES[];
+    const codes = new Set<string>();
+    for (const ur of user.userRoles) {
+      for (const p of ur.role?.permissions ?? []) {
+        codes.add(p.code);
+      }
+    }
+
+    const permissions = [...codes] as PERMISSION_NAMES[];
     await this.setCachedPermissions(cacheKey, permissions);
 
     const granted = new Set(permissions);

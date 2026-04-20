@@ -10,6 +10,9 @@ import { In, Repository } from 'typeorm';
 import { RoleCreateDto } from './dto/role.create.dto';
 import { RoleUpdateDto } from './dto/role.update.dto';
 import { PermissionEntity } from 'src/permissions/entities/permissions.entity';
+import { TenantEntity } from 'src/tenant/entities/tenant.entity';
+
+const RESERVED_BUILTIN_CODES = new Set(['OWNER', 'ADMIN', 'USER']);
 
 @Injectable()
 export class RolesService {
@@ -18,11 +21,13 @@ export class RolesService {
     private readonly roleRepository: Repository<RoleEntity>,
     @InjectRepository(PermissionEntity)
     private readonly permissionRepository: Repository<PermissionEntity>,
+    @InjectRepository(TenantEntity)
+    private readonly tenantRepository: Repository<TenantEntity>,
   ) {}
 
   async getAllRoles(): Promise<RoleEntity[]> {
     return await this.roleRepository.find({
-      relations: ['permissions'],
+      relations: ['tenant', 'permissions'],
     });
   }
 
@@ -54,30 +59,14 @@ export class RolesService {
       throw new NotFoundException('Role not found');
     }
 
-    if (
-      roleEditDto.role_name !== undefined &&
-      roleEditDto.role_name !== role.role_name
-    ) {
-      if (role.built_in) {
-        throw new BadRequestException('Built-in role name cannot be changed');
-      }
-      const existingRole = await this.roleRepository.findOne({
-        where: { role_name: roleEditDto.role_name },
-        select: ['id'],
-      });
-      if (existingRole && existingRole.id !== role.id) {
-        throw new ConflictException('Role already exists');
-      }
-    }
-
     if (roleEditDto.permissions_id !== undefined) {
       role.permissions = await this.resolvePermissionsByIds(
         roleEditDto.permissions_id,
       );
     }
 
-    if (roleEditDto.role_name !== undefined) {
-      role.role_name = roleEditDto.role_name;
+    if (roleEditDto.name !== undefined) {
+      role.name = roleEditDto.name;
     }
 
     await this.roleRepository.save(role);
@@ -86,23 +75,44 @@ export class RolesService {
   }
 
   async addRole(roleAddDto: RoleCreateDto): Promise<RoleEntity> {
+    const tenant = await this.tenantRepository.findOne({
+      where: { id: roleAddDto.tenant_id },
+    });
+    if (!tenant) {
+      throw new NotFoundException('Tenant not found');
+    }
+
+    const normalizedCode = roleAddDto.code.trim().toUpperCase();
+    const isBuiltIn = roleAddDto.built_in === true;
+
+    if (isBuiltIn && !RESERVED_BUILTIN_CODES.has(normalizedCode)) {
+      throw new BadRequestException(
+        'Built-in role code must be OWNER, ADMIN, or USER',
+      );
+    }
+    if (!isBuiltIn && RESERVED_BUILTIN_CODES.has(normalizedCode)) {
+      throw new BadRequestException('Reserved role code');
+    }
+
     const existing = await this.roleRepository.findOne({
       where: {
-        role_name: roleAddDto.role_name,
+        tenant: { id: roleAddDto.tenant_id },
+        code: normalizedCode,
       },
     });
     if (existing) {
-      throw new ConflictException('Role already exists');
+      throw new ConflictException('Role already exists for this tenant');
     }
 
     const role = this.roleRepository.create({
-      role_name: roleAddDto.role_name,
-      built_in: roleAddDto.built_in ?? false,
+      tenant,
+      code: normalizedCode,
+      name: roleAddDto.name,
+      built_in: isBuiltIn,
+      permissions: await this.resolvePermissionsByIds(
+        roleAddDto.permissions_id,
+      ),
     });
-
-    role.permissions = await this.resolvePermissionsByIds(
-      roleAddDto.permissions_id,
-    );
 
     return await this.roleRepository.save(role);
   }

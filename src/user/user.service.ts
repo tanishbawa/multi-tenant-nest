@@ -1,5 +1,5 @@
 import {
-  BadRequestException,
+  ConflictException,
   ForbiddenException,
   Inject,
   Injectable,
@@ -125,7 +125,7 @@ export class UserService {
     return result;
   }
 
-  async getUserDetails(id: string): Promise<User | null> {
+  async getUserDetails(id: string): Promise<User> {
     const detailCacheKey = this.buildUserDetailsCacheKey(id);
     const cached = await this.getFromCache<User>(detailCacheKey);
     if (cached) {
@@ -153,25 +153,30 @@ export class UserService {
     if (
       await this.userRepository.findOne({ where: { email: userDto.email } })
     ) {
-      throw new BadRequestException('Email already exists');
+      throw new ConflictException('Email already exists');
     }
 
     const role = await this.roleRepository.findOne({
       where: { id: userDto.role_id },
     });
     if (!role) {
-      throw new BadRequestException('Role not found');
+      throw new NotFoundException('Role not found');
     }
 
     const passwordHash: string = await bcrypt.hash(userDto.password, 10);
 
     const createdUser = this.userRepository.create({
-      ...userDto,
+      name: userDto.name,
+      age: userDto.age,
+      email: userDto.email,
+      phone_no: userDto.phone_no,
+      address: userDto.address,
+      tenant_id: userDto.tenant_id,
       role,
       password_hash: passwordHash,
     });
 
-    const savedUser = await this.userRepository.save(createdUser);
+    const savedUser: User = await this.userRepository.save(createdUser);
     await this.invalidateUserCache(savedUser.id, savedUser.tenant_id);
     await this.enqueueAuditEvent({
       event: 'user.created',
@@ -224,9 +229,22 @@ export class UserService {
         where: { id: userUpdateDto.role_id },
       });
       if (!role) {
-        throw new BadRequestException('Role not found');
+        throw new NotFoundException('Role not found');
       }
       user.role = role;
+    }
+
+    if (
+      userUpdateDto.email !== undefined &&
+      userUpdateDto.email.toLowerCase() !== user.email.toLowerCase()
+    ) {
+      const existingByEmail = await this.userRepository.findOne({
+        where: { email: userUpdateDto.email },
+        select: ['id'],
+      });
+      if (existingByEmail && existingByEmail.id !== user.id) {
+        throw new ConflictException('Email already exists');
+      }
     }
 
     if (userUpdateDto.tenant_id !== undefined) {
@@ -235,7 +253,9 @@ export class UserService {
 
     if (userUpdateDto.name !== undefined) user.name = userUpdateDto.name;
     if (userUpdateDto.age !== undefined) user.age = userUpdateDto.age;
-    if (userUpdateDto.email !== undefined) user.email = userUpdateDto.email;
+    if (userUpdateDto.email !== undefined) {
+      user.email = userUpdateDto.email;
+    }
     if (userUpdateDto.phone_no !== undefined)
       user.phone_no = userUpdateDto.phone_no;
     if (userUpdateDto.address !== undefined)

@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -35,7 +36,7 @@ export class RolesService {
       where: { id: In(ids) },
     });
     if (permissions.length !== ids.length) {
-      throw new BadRequestException('One or more permissions not found');
+      throw new NotFoundException('One or more permissions not found');
     }
     return permissions;
   }
@@ -53,6 +54,22 @@ export class RolesService {
       throw new NotFoundException('Role not found');
     }
 
+    if (
+      roleEditDto.role_name !== undefined &&
+      roleEditDto.role_name !== role.role_name
+    ) {
+      if (role.built_in) {
+        throw new BadRequestException('Built-in role name cannot be changed');
+      }
+      const existingRole = await this.roleRepository.findOne({
+        where: { role_name: roleEditDto.role_name },
+        select: ['id'],
+      });
+      if (existingRole && existingRole.id !== role.id) {
+        throw new ConflictException('Role already exists');
+      }
+    }
+
     if (roleEditDto.permissions_id !== undefined) {
       role.permissions = await this.resolvePermissionsByIds(
         roleEditDto.permissions_id,
@@ -61,9 +78,6 @@ export class RolesService {
 
     if (roleEditDto.role_name !== undefined) {
       role.role_name = roleEditDto.role_name;
-    }
-    if (roleEditDto.built_in !== undefined) {
-      role.built_in = roleEditDto.built_in;
     }
 
     await this.roleRepository.save(role);
@@ -78,7 +92,7 @@ export class RolesService {
       },
     });
     if (existing) {
-      throw new BadRequestException('Role already exists');
+      throw new ConflictException('Role already exists');
     }
 
     const role = this.roleRepository.create({
@@ -99,6 +113,9 @@ export class RolesService {
     });
     if (!role) {
       throw new NotFoundException('Role not found');
+    }
+    if (role.built_in) {
+      throw new BadRequestException('Built-in roles cannot be deleted');
     }
     await this.roleRepository.delete(id);
     return { message: 'Role deleted successfully' };

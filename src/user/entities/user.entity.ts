@@ -20,8 +20,8 @@ export class User {
   @Column()
   name: string;
 
-  @Column()
-  age: string;
+  @Column({ type: 'int', nullable: true })
+  age: number | null;
 
   @Unique(['email'])
   @Column()

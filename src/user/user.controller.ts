@@ -21,6 +21,7 @@ import { Permissions } from 'src/auth/decorators/permissions.decorator';
 import { PERMISSION_NAMES } from 'src/config/constants';
 import { PaginatedResult } from 'src/config/types';
 import { UserQueryDto } from './dto/user.query.dto';
+import { ApiSuccessResponse } from 'src/config/api-response';
 
 @ApiTags('User')
 @ApiBearerAuth()
@@ -34,22 +35,41 @@ export class UserController {
   async getAllUsers(
     @Req() req: { user?: { userId?: string } },
     @Query() query: UserQueryDto,
-  ): Promise<PaginatedResult<User>> {
-    return await this.userService.getAllUsers(query, req.user?.userId ?? '');
+  ): Promise<ApiSuccessResponse<PaginatedResult<User>>> {
+    const users = await this.userService.getAllUsers(
+      query,
+      req.user?.userId ?? '',
+    );
+    return {
+      message: 'Users fetched successfully',
+      data: users,
+    };
   }
 
   @Get(':id')
   @Permissions(PERMISSION_NAMES.READ_USER)
-  getUserDetails(@Param('id') id: string): Promise<User | null> {
-    return this.userService.getUserDetails(id);
+  async getUserDetails(
+    @Param('id') id: string,
+  ): Promise<ApiSuccessResponse<User>> {
+    const user = await this.userService.getUserDetails(id);
+    return {
+      message: 'User fetched successfully',
+      data: user,
+    };
   }
 
   @Post()
   @Permissions(PERMISSION_NAMES.CREATE_USER)
   async addUser(
     @Body() userDto: UserCreateDto,
-  ): Promise<{ message: string; user_id: string }> {
-    return await this.userService.addUser(userDto);
+  ): Promise<ApiSuccessResponse<{ user_id: string }>> {
+    const created = await this.userService.addUser(userDto);
+    return {
+      message: created.message,
+      data: {
+        user_id: created.user_id,
+      },
+    };
   }
 
   @Put(':id')
@@ -57,13 +77,27 @@ export class UserController {
   async updateUser(
     @Param('id') id: string,
     @Body() userUpdateDto: UserUpdateDto,
-  ): Promise<{ message: string }> {
-    return await this.userService.updateUser(userUpdateDto, id);
+  ): Promise<ApiSuccessResponse<{ user_id: string }>> {
+    const updated = await this.userService.updateUser(userUpdateDto, id);
+    return {
+      message: updated.message,
+      data: {
+        user_id: id,
+      },
+    };
   }
 
   @Delete(':id')
   @Permissions(PERMISSION_NAMES.DELETE_USER)
-  async deleteUser(@Param('id') id: string): Promise<{ message: string }> {
-    return await this.userService.deleteUser(id);
+  async deleteUser(
+    @Param('id') id: string,
+  ): Promise<ApiSuccessResponse<{ user_id: string }>> {
+    const deleted = await this.userService.deleteUser(id);
+    return {
+      message: deleted.message,
+      data: {
+        user_id: id,
+      },
+    };
   }
 }

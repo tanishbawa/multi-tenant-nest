@@ -1,5 +1,5 @@
 import {
-  BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -26,18 +26,14 @@ export class PermissionsService {
         where: { permission_name: permissionCreateDto.permission_name },
       })
     ) {
-      throw new BadRequestException('Permission already exists');
+      throw new ConflictException('Permission already exists');
     }
 
     return await this.permissionRepository.save(permission);
   }
 
   async getAllPermissions(): Promise<PermissionEntity[]> {
-    const permissions = await this.permissionRepository.find();
-    if (!permissions) {
-      throw new NotFoundException('No permissions found');
-    }
-    return permissions;
+    return await this.permissionRepository.find();
   }
 
   async editPermission(
@@ -50,6 +46,18 @@ export class PermissionsService {
 
     if (!permission) {
       throw new NotFoundException('Permission not found');
+    }
+
+    if (
+      permissionEditDto.permission_name !== undefined &&
+      permissionEditDto.permission_name !== permission.permission_name
+    ) {
+      const existingPermission = await this.permissionRepository.findOne({
+        where: { permission_name: permissionEditDto.permission_name },
+      });
+      if (existingPermission && existingPermission.id !== permission.id) {
+        throw new ConflictException('Permission already exists');
+      }
     }
 
     await this.permissionRepository.update(id, permissionEditDto);
@@ -68,7 +76,7 @@ export class PermissionsService {
 
     await this.permissionRepository.delete(id);
     if (await this.permissionRepository.findOne({ where: { id: id } })) {
-      throw new BadRequestException('Permission not deleted');
+      throw new ConflictException('Permission not deleted');
     }
 
     return { message: 'Permission deleted successfully' };

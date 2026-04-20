@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsString } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsString } from 'class-validator';
 import { PERMISSION_NAMES } from 'src/config/constants';
 
 export class PermissionsCreateDto {
@@ -9,5 +9,6 @@ export class PermissionsCreateDto {
 
   @ApiProperty({ example: 'Create a new user' })
   @IsString()
+  @IsNotEmpty()
   permission_description: string;
 }

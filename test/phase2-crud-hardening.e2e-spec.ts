@@ -19,6 +19,7 @@ import { RolesController } from 'src/roles/roles.controller';
 import { RolesService } from 'src/roles/roles.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { PermissionsGuard } from 'src/auth/permissions.guard';
+import { TenantGuard } from 'src/auth/tenant.guard';
 import { UserController } from 'src/user/user.controller';
 import { UserService } from 'src/user/user.service';
 
@@ -44,6 +45,12 @@ class PermissionsGuardMock implements CanActivate {
     if (request.headers['x-permission-allow'] !== 'true') {
       throw new ForbiddenException('Insufficient permissions');
     }
+    return true;
+  }
+}
+
+class TenantGuardMock implements CanActivate {
+  canActivate(): boolean {
     return true;
   }
 }
@@ -94,16 +101,14 @@ describe('Phase 2 CRUD Hardening (e2e)', () => {
     };
 
     rolesService = {
-      getAllRoles: jest
-        .fn()
-        .mockResolvedValue([
-          {
-            id: 'role-1',
-            code: 'ADMIN',
-            name: 'Admin',
-            built_in: true,
-          } as RoleEntity,
-        ]),
+      getAllRoles: jest.fn().mockResolvedValue([
+        {
+          id: 'role-1',
+          code: 'ADMIN',
+          name: 'Admin',
+          built_in: true,
+        } as RoleEntity,
+      ]),
       addRole: jest.fn().mockResolvedValue({
         id: 'role-2',
         code: 'EDITOR',
@@ -143,6 +148,8 @@ describe('Phase 2 CRUD Hardening (e2e)', () => {
     })
       .overrideGuard(JwtAuthGuard)
       .useValue(new JwtAuthGuardMock())
+      .overrideGuard(TenantGuard)
+      .useValue(new TenantGuardMock())
       .overrideGuard(PermissionsGuard)
       .useValue(new PermissionsGuardMock());
 

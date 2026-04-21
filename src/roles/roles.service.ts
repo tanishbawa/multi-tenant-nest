@@ -25,8 +25,9 @@ export class RolesService {
     private readonly tenantRepository: Repository<TenantEntity>,
   ) {}
 
-  async getAllRoles(): Promise<RoleEntity[]> {
+  async getAllRoles(tenantId: string): Promise<RoleEntity[]> {
     return await this.roleRepository.find({
+      where: { tenant: { id: tenantId } },
       relations: ['tenant', 'permissions'],
     });
   }
@@ -49,10 +50,11 @@ export class RolesService {
   async editRole(
     roleEditDto: RoleUpdateDto,
     id: string,
+    tenantId: string,
   ): Promise<{ message: string }> {
     const role = await this.roleRepository.findOne({
-      where: { id: id },
-      relations: ['permissions'],
+      where: { id, tenant: { id: tenantId } },
+      relations: ['tenant', 'permissions'],
     });
 
     if (!role) {
@@ -74,9 +76,16 @@ export class RolesService {
     return { message: 'Role updated successfully' };
   }
 
-  async addRole(roleAddDto: RoleCreateDto): Promise<RoleEntity> {
+  async addRole(
+    roleAddDto: RoleCreateDto,
+    tenantId: string,
+  ): Promise<RoleEntity> {
+    if (roleAddDto.tenant_id !== tenantId) {
+      throw new BadRequestException('Body tenant_id must match X-Tenant-Id');
+    }
+
     const tenant = await this.tenantRepository.findOne({
-      where: { id: roleAddDto.tenant_id },
+      where: { id: tenantId },
     });
     if (!tenant) {
       throw new NotFoundException('Tenant not found');
@@ -96,7 +105,7 @@ export class RolesService {
 
     const existing = await this.roleRepository.findOne({
       where: {
-        tenant: { id: roleAddDto.tenant_id },
+        tenant: { id: tenantId },
         code: normalizedCode,
       },
     });
@@ -117,9 +126,9 @@ export class RolesService {
     return await this.roleRepository.save(role);
   }
 
-  async deleteRole(id: string): Promise<{ message: string }> {
+  async deleteRole(id: string, tenantId: string): Promise<{ message: string }> {
     const role = await this.roleRepository.findOne({
-      where: { id: id },
+      where: { id, tenant: { id: tenantId } },
     });
     if (!role) {
       throw new NotFoundException('Role not found');

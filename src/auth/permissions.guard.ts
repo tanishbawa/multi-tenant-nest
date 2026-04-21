@@ -15,6 +15,15 @@ import { User } from 'src/user/entities/user.entity';
 import { PERMISSION_NAMES } from 'src/config/constants';
 import { PERMISSIONS_KEY } from './decorators/permissions.decorator';
 
+type RequestUser = {
+  userId: string;
+};
+
+type TenantScopedRequest = {
+  user?: RequestUser;
+  tenantId?: string;
+};
+
 @Injectable()
 export class PermissionsGuard implements CanActivate {
   private readonly logger = new Logger(PermissionsGuard.name);
@@ -38,15 +47,17 @@ export class PermissionsGuard implements CanActivate {
       return true;
     }
 
-    const request = context
-      .switchToHttp()
-      .getRequest<{ user?: { userId: string } }>();
+    const request = context.switchToHttp().getRequest<TenantScopedRequest>();
     const userId = request.user?.userId;
+    const tenantId = request.tenantId;
     if (!userId) {
       throw new ForbiddenException('Insufficient permissions');
     }
+    if (!tenantId) {
+      throw new ForbiddenException('Tenant scope is required');
+    }
 
-    const cacheKey = `perm:user:${userId}`;
+    const cacheKey = `perm:user:${userId}:tenant:${tenantId}`;
     const cachedPermissions = await this.getCachedPermissions(cacheKey);
 
     if (cachedPermissions) {
@@ -61,16 +72,24 @@ export class PermissionsGuard implements CanActivate {
     this.logger.debug('cache.miss key_prefix=perm:user');
 
     const user = await this.userRepository.findOne({
-      where: { id: userId },
-      relations: ['userRoles', 'userRoles.role', 'userRoles.role.permissions'],
+      where: { id: userId, tenant: { id: tenantId }, is_active: true },
+      relations: [
+        'userRoles',
+        'userRoles.role',
+        'userRoles.role.tenant',
+        'userRoles.role.permissions',
+      ],
     });
 
-    if (!user?.is_active || !user.userRoles?.length) {
+    if (!user?.userRoles?.length) {
       throw new ForbiddenException('Insufficient permissions');
     }
 
     const codes = new Set<string>();
     for (const ur of user.userRoles) {
+      if (ur.role?.tenant?.id && ur.role.tenant.id !== tenantId) {
+        continue;
+      }
       for (const p of ur.role?.permissions ?? []) {
         codes.add(p.code);
       }

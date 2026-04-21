@@ -16,13 +16,16 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { PermissionsGuard } from 'src/auth/permissions.guard';
 import { Permissions } from 'src/auth/decorators/permissions.decorator';
+import { ApiTenantHeader } from 'src/auth/decorators/api-tenant-header.decorator';
+import { TenantGuard } from 'src/auth/tenant.guard';
 import { PERMISSION_NAMES } from 'src/config/constants';
 import { ApiSuccessResponse } from 'src/config/api-response';
 
 @ApiTags('Permissions')
 @ApiBearerAuth()
+@ApiTenantHeader()
 @Controller('permissions')
-@UseGuards(JwtAuthGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
 export class PermissionsController {
   constructor(private readonly permissionsService: PermissionsService) {}
 

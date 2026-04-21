@@ -11,6 +11,7 @@ import { RefreshToken } from './entities/refresh-token.entity';
 import { PermissionsGuard } from './permissions.guard';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { QueueModule } from 'src/queue/queue.module';
+import { TenantGuard } from './tenant.guard';
 
 @Module({
   imports: [
@@ -36,7 +37,19 @@ import { QueueModule } from 'src/queue/queue.module';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, JwtAuthGuard, PermissionsGuard],
-  exports: [PassportModule, JwtAuthGuard, PermissionsGuard, TypeOrmModule],
+  providers: [
+    AuthService,
+    JwtStrategy,
+    JwtAuthGuard,
+    TenantGuard,
+    PermissionsGuard,
+  ],
+  exports: [
+    PassportModule,
+    JwtAuthGuard,
+    TenantGuard,
+    PermissionsGuard,
+    TypeOrmModule,
+  ],
 })
 export class AuthModule {}
